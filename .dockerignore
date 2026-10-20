@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+.logfire
+.venv
+**/__pycache__
+**/*.pyc
+DATA
+tests
+scripts
+ui

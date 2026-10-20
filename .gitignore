@@ -1,3 +1,5 @@
 .logire/
 DATA/
 .env
+scripts/
+tests/
