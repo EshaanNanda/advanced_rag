@@ -1,16 +1,11 @@
 import logfire
 from langchain_core.messages import SystemMessage
-from langchain_groq import ChatGroq
 
+from app.gateway import portkey_client,extract_cache_status
 from app.agents.state import AgentState
 from app.config import settings
+from langchain_core.messages import convert_to_openai_messages
 
-
-llm = ChatGroq(
-    api_key=settings.GROQ_API_KEY,
-    model=settings.GROQ_MODEL,
-    temperature=0,
-)
 
 
 def generate_node(state: AgentState) -> dict:
@@ -66,21 +61,35 @@ TECHNICAL CONTEXT:
     with logfire.span("LLM Synthesis") as span:
         
         try:
-            response = llm.invoke(
-                [
-                    SystemMessage(content=system_prompt),
-                    *messages,
-                ]
-            )  
+            
 
-            span.set_attribute("answer", response.content)
-            logfire.info("Response synthesized successfully.")
+            response = portkey_client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    *convert_to_openai_messages(messages),
+                ],
+                temperature=0.1,
+            )
+            content = response.choices[0].message.content
+            cache_status = extract_cache_status(response)
+            is_cache_hit = cache_status == "HIT"
+
+            if is_cache_hit:
+                logfire.info("⚡ Gateway Cache Hit — response served from Portkey cache.")
+                plan_update = state["plan"] + ["Cache: Hit ⚡"]
+                status = "Cache hit — instant response."
+            else:
+                logfire.info("✅ Response synthesised via LLM.")
+                plan_update = state["plan"]
+                status = "Response generated."
 
             return {
-                "final_answer": response.content,
-                "status": "Response generated.",
-                "messages": [{"role": "assistant", "content": response.content}],
+                "final_answer": content,
+                "status": status,
+                "plan": plan_update,
+                "messages": [{"role": "assistant", "content": content}]
             }
+
 
         except Exception as e:
             logfire.error(f"LLM generation failed: {e}")

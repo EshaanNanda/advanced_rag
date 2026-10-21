@@ -1,5 +1,5 @@
 from typing import Literal
-
+from app.gateway.client import  get_langchain_llm
 import logfire
 from langchain_core.messages import SystemMessage
 from langchain_groq import ChatGroq
@@ -21,11 +21,8 @@ class PlannerDecision(BaseModel):
     )
 
 
-llm = ChatGroq(
-    api_key=settings.GROQ_API_KEY,
-    model=settings.GROQ_MODEL,
-    temperature=0,
-)
+llm = get_langchain_llm(feature="planner")
+    
 
 planner_llm = llm.with_structured_output(
     PlannerDecision,
